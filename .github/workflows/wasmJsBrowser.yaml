@@ -1,16 +1,29 @@
-name: Deploy Web to GitHub Pages
+name: Deploy Compose Multiplatform Web WASM to Pages
 
 on:
   push:
-    branches: [ "main" ] 
+    branches: ["main"]
+
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
-  build-and-deploy:
-    runs-on: macos-latest
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
@@ -19,16 +32,22 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Set up Gradle
-        uses: gradle/gradle-build-action@v2
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      - name: Build Web WASM
+      - name: Build WebAssembly distribution
         run: ./gradlew :composeApp:wasmJsBrowserDistribution
 
-      - name: Upload Artifacts
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          static_site_generator: gradle
+          static_site_generator_path: ./composeApp/build/dist/wasmJs/productionExecutable
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./composeApp/build/dist/wasmJs/productionExecutable
+          path: './composeApp/build/dist/wasmJs/productionExecutable'
 
       - name: Deploy to GitHub Pages
         id: deployment
